@@ -4,6 +4,7 @@
             this.elements = elements
             this.elements.plotCanvas.addEventListener("click", this.onPlotCanvasClick.bind(this)) 
             this.data = []
+            this.loadDataFromServer()
         }
 
         onPlotCanvasClick(evt) {
@@ -36,6 +37,13 @@
                 //context.strokeStyle = '#003300';
                 //context.stroke();
             }
+        }
+
+        loadDataFromServer() {
+            fetch("/api/v1/data", { method: "GET"}).then(res => res.json()).then(res => {
+                this.data = res
+                this.redrawPlot()
+            });
         }
     }   
 
