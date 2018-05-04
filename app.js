@@ -6,49 +6,14 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var session = require('express-session')
 
-var Connection = require('tedious').Connection;
-var Request = require('tedious').Request;
-
+const DataStore = require("./datastore")
 const sqlConnectionConfig = require("./sqlconnection")
-console.log(sqlConnectionConfig)
 
-var connection = new Connection(sqlConnectionConfig)
-connection.on('connect', err => {
-  if (err) console.log(err)
-  else queryDatabase(connection, "rpakdel@gmail.com")
-})
 
-function queryDatabase(cn, email) { 
-  return new Promise((res, rej) => {
-    let request = new Request(
-      "SELECT [data].[email] as email, [data].[x] as x, [data].[y] as y FROM [data] WHERE [data].[email] = '" + email + "'", (err, rowCount, rows) => {
-        if (err) rej(err)
-        else console.log(`DB ${email} has ${rowCount} rows`)
-      })
-
-      let data = []
-      request.on('row', columns => {
-          let email = columns[0].value
-          let x = columns[1].value
-          let y = columns[2].value
-          data.push([x, y])
-      })
-
-      request.on('done', (rowCount, more, rows) => {
-        res(data)
-      })
-
-      request.on('doneInProc', (rowCount, more, rows) => {
-        res(data)
-      })
-
-      request.on('doneProc', (rowCount, more, returnStatus, rows) => { 
-        res(data)
-      });
-      cn.execSql(request)
-    })
-  }
+let ds = new DataStore(sqlConnectionConfig)
+ds.connect()
 
 var app = express();
 
@@ -62,10 +27,27 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.set('trust proxy', 1) // trust first proxy
+app.use(session({
+  secret: 'keyboard cat',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: true }
+}))
 
+let email = "rpakdel@gmail.com"
 
 app.get('/api/v1/data', (req, res) => {
-  queryDatabase(connection, "rpakdel@gmail.com").then(data => res.json(data))
+  ds.query(email).then(data => res.json(data))
+})
+
+app.post('/api/v1/point', (req, res) => {
+  let point = req.body
+  ds.storePoint(email, point).then(result => res.sendStatus(200))
+})
+
+app.get('/api/v1/deleteall', (req, res) => {
+  ds.deleteAll(email).then(result => res.sendStatus(200))
 })
 
 app.use('/', (req, res) => {

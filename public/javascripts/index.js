@@ -3,8 +3,11 @@
         constructor(elements) {
             this.elements = elements
             this.elements.plotCanvas.addEventListener("click", this.onPlotCanvasClick.bind(this)) 
-            this.data = []
-            this.loadDataFromServer()
+            this.elements.deleteAll.addEventListener("click", this.onDeleteAllClick.bind(this)) 
+            this.loadDataFromServer().then(result => {
+                this.data = result
+                this.redrawPlot()
+            })
         }
 
         onPlotCanvasClick(evt) {
@@ -12,8 +15,18 @@
             let x = evt.clientX - rect.left
             let y = evt.clientY - rect.top
 
-            this.data.push([x, y])
-            this.redrawPlot()
+            let point = [x, y]
+            this.storePointToServer(point).then(result => {
+                this.data.push(point)
+                this.redrawPlot()
+            })
+        }
+
+        onDeleteAllClick(evt) {
+            this.deleteAllInServer().then(result => {
+                this.data = []
+                this.redrawPlot()
+            })
         }
 
         redrawPlot() {
@@ -40,16 +53,28 @@
         }
 
         loadDataFromServer() {
-            fetch("/api/v1/data", { method: "GET"}).then(res => res.json()).then(res => {
-                this.data = res
-                this.redrawPlot()
-            });
+            return fetch("/api/v1/data", { method: "GET" }).then(res => res.json())
+        }
+
+        storePointToServer(point) {
+            return fetch("/api/v1/point", { 
+                method: "POST",
+                body: JSON.stringify(point),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+        }
+
+        deleteAllInServer() {
+            return fetch("/api/v1/deleteAll", { method: "GET" })
         }
     }   
 
     const elements = {
         plotContainer : document.getElementById("plotContainer"),
-        plotCanvas: document.getElementById("plotCanvas")
+        plotCanvas: document.getElementById("plotCanvas"),
+        deleteAll: document.getElementById("deleteAll"),
     }
     const app = new App(elements)
 })()
