@@ -1,3 +1,5 @@
+const fs = require('fs')
+
 var express = require('express');
 var path = require('path');
 var favicon = require('serve-favicon');
@@ -8,15 +10,8 @@ var bodyParser = require('body-parser');
 var Connection = require('tedious').Connection;
 var Request = require('tedious').Request;
 
-var sqlConnectionConfig = {
-  userName: 'rpakdel',
-  password: '@~pN%wDM', // update me
-  server: 'nodejs-azure-dbscan.database.windows.net', // update me
-  options: {
-    database: 'nodejs-azure-dbscan-db', //update me
-    encrypt: true
-  }
-}
+const sqlConnectionConfig = require("./sqlconnection")
+
 var connection = new Connection(sqlConnectionConfig)
 connection.on('connect', err => {
   if (err) console.log(err)
