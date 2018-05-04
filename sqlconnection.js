@@ -5,11 +5,11 @@ function getSqlConnectionConfig() {
         return require("./private-do-not-checkin.js")
     } else {
         return {
-            userName: process.env.UserName,
-            password: process.env.Password,
-            server: process.env.ServerName,
+            userName: process.env.DBSCANUserName,
+            password: process.env.DBSCANUserPassword,
+            server: process.env.DBSCANServerName,
             options: {
-              database: process.env.DatabaseName,
+              database: process.env.DBSCANDatabaseName,
               encrypt: true
             }
         }
