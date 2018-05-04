@@ -11,6 +11,7 @@ var Connection = require('tedious').Connection;
 var Request = require('tedious').Request;
 
 const sqlConnectionConfig = require("./sqlconnection")
+console.log(sqlConnectionConfig)
 
 var connection = new Connection(sqlConnectionConfig)
 connection.on('connect', err => {
@@ -23,6 +24,7 @@ function queryDatabase(cn, email) {
     let request = new Request(
       "SELECT [data].[email] as email, [data].[x] as x, [data].[y] as y FROM [data] WHERE [data].[email] = '" + email + "'", (err, rowCount, rows) => {
         if (err) rej(err)
+        else console.log(`DB ${email} has ${rowCount} rows`)
       })
 
       let data = []
