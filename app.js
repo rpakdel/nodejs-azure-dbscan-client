@@ -80,12 +80,13 @@ app.use(session({
 }))
 
 let email = "rpakdel@gmail.com"
+let dbscanhost = "https://rpakdel-dbscan.azurewebsites.net/"
 
 app.get('/api/v1/data/:radius/:minPts', (req, res) => {
   let radius = req.params.radius
   let minPts = req.params.minPts
   ds.query(email).then(data => {
-    fetch(`http://localhost:3030/api/v1/dbscan/${radius}/${minPts}`, {
+    fetch(`${dbscanhost}/api/v1/dbscan/${radius}/${minPts}`, {
       method: "POST",
       body: JSON.stringify(data),
       headers: {
