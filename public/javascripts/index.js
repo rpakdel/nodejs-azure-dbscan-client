@@ -9,6 +9,7 @@
 
             this.connectToServer("rpakdel@gmail.com", this.clientId, this.setDataAndDrawPlot.bind(this))            
 
+            this.clusterColors = []
             this.setDataAndDrawPlot()
         }
 
@@ -57,37 +58,47 @@
             let y = evt.clientY - rect.top
 
             let point = [x, y]
-            this.storePointToServer(point).then(result => {
-                //websocket event will trigger this
-                //this.data.push(point)
-                // this.drawPlot() 
+            this.storePointToServer(point).then(result => {                
             })
         }
 
         onDeleteAllClick(evt) {
-            this.deleteAllInServer().then(result => {
-                //websocket event will trigger this
-                //this.data = []
-                //this.drawPlot()
+            this.deleteAllInServer().then(result => {                
             })
         }
 
-        drawPlot() {
-            let ctx = this.elements.plotCanvas.getContext("2d")
-            ctx.clearRect(0, 0, this.elements.plotCanvas.width, this.elements.plotCanvas.height)
-            this.drawPoints(this.data, ctx)
+        getClusterColors(numClusters) {
+            if (this.clusterColors.length < numClusters)
+            {
+                for(let i = this.clusterColors.length; i < numClusters; i++) {
+                    this.clusterColors.push(`rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`)
+                }
+            }
+            return this.clusterColors
         }
 
-        drawPoints(data, context) {
-            let l = data.length
+        drawPlot(data, numClusters) {
+            let ctx = this.elements.plotCanvas.getContext("2d")
+            ctx.clearRect(0, 0, this.elements.plotCanvas.width, this.elements.plotCanvas.height)
+            let clusterColors = this.getClusterColors(numClusters)
+            this.drawPoints(data, clusterColors, ctx)
+        }
+
+        drawPoints(data, clusterColors, context) {
+            let l = data.length            
             for(let i = 0; i < l; i++) {
                 let p = data[i]
                 let x = p[0]
                 let y = p[1]
+                let clusterIndex = p[2]
+                let color = "green"
+                if (clusterIndex >= 0) {
+                    color = clusterColors[clusterIndex]
+                }
 
                 context.beginPath();
                 context.arc(x, y, 3, 0, 2 * Math.PI, false);
-                context.fillStyle = 'green';
+                context.fillStyle = color;
                 context.fill();
                 //context.lineWidth = 5;
                 //context.strokeStyle = '#003300';
@@ -97,13 +108,14 @@
 
         setDataAndDrawPlot() {
             this.loadDataFromServer().then(result => {
-                this.data = result
-                this.drawPlot()
+                this.data = result.data
+                this.dbscan = result.dbscan
+                this.drawPlot(this.data, this.dbscan.clusters.length)
             })
         }
 
         loadDataFromServer() {
-            return fetch("/api/v1/data", { method: "GET" }).then(res => res.json())
+            return fetch("/api/v1/data/100/5", { method: "GET" }).then(res => res.json())
         }
 
         storePointToServer(point) {

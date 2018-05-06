@@ -13,6 +13,8 @@ const WebSocket = require("ws")
 const DataStore = require("./datastore")
 const sqlConnectionConfig = require("./sqlconnection")
 
+const fetch = require("node-fetch")
+
 const ds = new DataStore(sqlConnectionConfig)
 ds.connect()
 
@@ -79,8 +81,39 @@ app.use(session({
 
 let email = "rpakdel@gmail.com"
 
-app.get('/api/v1/data', (req, res) => {
-  ds.query(email).then(data => res.json(data))
+app.get('/api/v1/data/:radius/:minPts', (req, res) => {
+  let radius = req.params.radius
+  let minPts = req.params.minPts
+  ds.query(email).then(data => {
+    fetch(`http://localhost:3030/api/v1/dbscan/${radius}/${minPts}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then(response => response.json().then(j => {
+      let dbscan = JSON.parse(j)
+      // add the cluster index to each point
+      for(let clusterIndex = 0; clusterIndex < dbscan.clusters.length; clusterIndex++) {
+        let cluster = dbscan.clusters[clusterIndex]
+        for(let i = 0; i < cluster.length; i++) {
+          let pointIndex = cluster[i]
+          data[pointIndex].push(clusterIndex)
+        }
+      }
+      // tag noise points with cluster value -1
+      for(let i2 = 0; i2 < dbscan.noise.length; i2++) {
+        let pointIndex = dbscan.noise[i2]
+        data[pointIndex].push(-1)
+      }
+
+      let result = {
+        data,
+        dbscan
+      }
+      res.json(result)
+    }))    
+  })
 })
 
 app.post('/api/v1/point/:clientId', (req, res) => {
