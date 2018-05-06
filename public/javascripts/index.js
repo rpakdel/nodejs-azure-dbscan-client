@@ -3,11 +3,47 @@
         constructor(elements) {
             this.elements = elements
             this.elements.plotCanvas.addEventListener("click", this.onPlotCanvasClick.bind(this)) 
-            this.elements.deleteAll.addEventListener("click", this.onDeleteAllClick.bind(this)) 
-            this.loadDataFromServer().then(result => {
-                this.data = result
-                this.redrawPlot()
+            this.elements.deleteAll.addEventListener("click", this.onDeleteAllClick.bind(this))             
+
+            this.clientId = Math.random()            
+
+            this.connectToServer("rpakdel@gmail.com", this.clientId, this.setDataAndDrawPlot.bind(this))            
+
+            this.setDataAndDrawPlot()
+        }
+
+        connectToServer(email, clientId, onDataChanged) {
+            this.disconnectFromServer(email)
+            this.webSocket = new WebSocket(`ws://${location.host}`)
+            this.webSocket.addEventListener("open", event => {
+                this.webSocket.send(JSON.stringify({
+                    email: email,
+                    clientId: clientId,
+                    connect: true
+                }))
             })
+            
+            this.webSocket.addEventListener("message", event => {
+                let j = JSON.parse(event.data)
+                if (j.event && j.event === "datachanged") {
+                    //ignore clientId for now
+                    //if (j.clientId != clientId) {
+                        onDataChanged()
+                    //}
+                }
+            })
+        }
+
+        disconnectFromServer(email) {
+            if (this.webSocket != null) {
+                this.webSocket.send(JSON.stringify({
+                    email: email,
+                    clientId: clientId,
+                    connect: false
+                }))
+                this.webSocket.close()
+                this.webSocket = null
+            }
         }
 
         onPlotCanvasClick(evt) {
@@ -17,19 +53,21 @@
 
             let point = [x, y]
             this.storePointToServer(point).then(result => {
-                this.data.push(point)
-                this.redrawPlot()
+                //websocket event will trigger this
+                //this.data.push(point)
+                // this.drawPlot() 
             })
         }
 
         onDeleteAllClick(evt) {
             this.deleteAllInServer().then(result => {
-                this.data = []
-                this.redrawPlot()
+                //websocket event will trigger this
+                //this.data = []
+                //this.drawPlot()
             })
         }
 
-        redrawPlot() {
+        drawPlot() {
             let ctx = this.elements.plotCanvas.getContext("2d")
             ctx.clearRect(0, 0, this.elements.plotCanvas.width, this.elements.plotCanvas.height)
             this.drawPoints(this.data, ctx)
@@ -52,12 +90,19 @@
             }
         }
 
+        setDataAndDrawPlot() {
+            this.loadDataFromServer().then(result => {
+                this.data = result
+                this.drawPlot()
+            })
+        }
+
         loadDataFromServer() {
             return fetch("/api/v1/data", { method: "GET" }).then(res => res.json())
         }
 
         storePointToServer(point) {
-            return fetch("/api/v1/point", { 
+            return fetch(`/api/v1/point/${this.clientId}`, { 
                 method: "POST",
                 body: JSON.stringify(point),
                 headers: {
@@ -67,7 +112,7 @@
         }
 
         deleteAllInServer() {
-            return fetch("/api/v1/deleteAll", { method: "GET" })
+            return fetch(`/api/v1/deleteAll/${this.clientId}`, { method: "GET" })
         }
     }   
 

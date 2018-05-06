@@ -1,23 +1,65 @@
 const fs = require('fs')
 
-var express = require('express');
-var path = require('path');
-var favicon = require('serve-favicon');
-var logger = require('morgan');
-var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
-var session = require('express-session')
+const express = require('express');
+const path = require('path');
+const favicon = require('serve-favicon');
+const logger = require('morgan');
+const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
+const session = require('express-session')
+
+const WebSocket = require("ws")
 
 const DataStore = require("./datastore")
 const sqlConnectionConfig = require("./sqlconnection")
 
-
-let ds = new DataStore(sqlConnectionConfig)
+const ds = new DataStore(sqlConnectionConfig)
 ds.connect()
 
-var app = express();
+const app = express();
 
-// view engine setup
+let webSocketServer = null;
+let webSocketClients = []
+
+app.initWebSocket = function(server) {
+  webSocketServer = new WebSocket.Server({ server })
+
+  webSocketServer.on("connection", wsSocket => {
+    console.log("WebSocket socket client connected")
+    wsSocket.on("message", data => {
+      let j = JSON.parse(data)
+      if (j.email) {
+        let o = { 
+          email: j.email, 
+          clientId: j.clientId, 
+          wsSocket: wsSocket }
+        if (j.connect) {
+          webSocketClients.push(o)
+        } else {
+          // remove the socket from client list
+          webSocketClients = webSocketClients.filter(w => w.wsSocket !== j.wsSocket)
+        }
+      }
+    })
+    // remove yourself from client list
+    wsSocket.on("close", () => {
+      webSocketClients = webSocketClients.filter(w => w.wsSocket !== wsSocket)
+    })
+  })
+}
+
+function broadcastDataChangeNotification(email, clientId) {
+  webSocketClients.map(w => {
+    if (w.email === email) {
+      let j = {
+        event: "datachanged",
+        email: email,
+        clientId: clientId
+      }
+      w.wsSocket.send(JSON.stringify(j))
+    }
+  })
+}
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -41,13 +83,21 @@ app.get('/api/v1/data', (req, res) => {
   ds.query(email).then(data => res.json(data))
 })
 
-app.post('/api/v1/point', (req, res) => {
+app.post('/api/v1/point/:clientId', (req, res) => {
   let point = req.body
-  ds.storePoint(email, point).then(result => res.sendStatus(200))
+  let clientId = req.params.clientId
+  ds.storePoint(email, point).then(result => {
+    res.sendStatus(200)
+    broadcastDataChangeNotification(email, clientId)
+  })
 })
 
-app.get('/api/v1/deleteall', (req, res) => {
-  ds.deleteAll(email).then(result => res.sendStatus(200))
+app.get('/api/v1/deleteall/:clientId', (req, res) => {
+  let clientId = req.params.clientId
+  ds.deleteAll(email).then(result => {
+    res.sendStatus(200)
+    broadcastDataChangeNotification(email, clientId)
+  })
 })
 
 app.use('/', (req, res) => {
