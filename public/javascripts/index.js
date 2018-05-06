@@ -14,7 +14,12 @@
 
         connectToServer(email, clientId, onDataChanged) {
             this.disconnectFromServer(email)
-            this.webSocket = new WebSocket(`ws://${location.host}`)
+            if (location.protocol === "https:") {
+                this.webSocket = new WebSocket(`wss://${location.host}`)
+            } else {
+                this.webSocket = new WebSocket(`ws://${location.host}`)
+            }
+            
             this.webSocket.addEventListener("open", event => {
                 this.webSocket.send(JSON.stringify({
                     email: email,
