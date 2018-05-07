@@ -15,8 +15,34 @@ const sqlConnectionConfig = require("./sqlconnection")
 
 const fetch = require("node-fetch")
 
+const redis = require("redis")
+const redisClient = redis.createClient(6380, 'dbscan.redis.cache.windows.net', {
+    auth_pass: 'yezrd3BGgl18i7vBL6slDKfpAqLGoOvNzpcGhhpBPDM=', 
+    tls: {
+      servername: 'dbscan.redis.cache.windows.net'
+    }
+  })
+
+function setRedisFromSQLServer() {
+  return new Promise((res, rej) => {
+    redisClient.flushdb((err, success) => {
+      if (err) { 
+        rej(err) 
+      }
+      else {
+        ds.queryAll().then(data => {
+          data.map(row => {
+            redisClient.RPUSH(row.email, JSON.stringify(row.point))          
+          })
+          res()
+        })
+      }
+    })
+  })  
+}
+
 const ds = new DataStore(sqlConnectionConfig)
-ds.connect()
+ds.connect().then(() => setRedisFromSQLServer())
 
 const app = express();
 
@@ -117,20 +143,74 @@ app.get('/api/v1/data/:radius/:minPts', (req, res) => {
   })
 })
 
+function getDataFromRedis(email) {
+  return new Promise((res, rej) => {
+    redisClient.lrange(email, 0, -1, (err, result) => {
+      if (err) {
+        rej(err)
+      } else {
+        let a = result.map(i => {
+          return JSON.parse(i)
+        })
+        res(a)
+      }
+    })
+  })  
+}
+
+app.get('/api/v1/cachedata/:radius/:minPts', (req, res) => {
+  let radius = req.params.radius
+  let minPts = req.params.minPts
+  getDataFromRedis(email).then(data => {
+    fetch(`${dbscanhost}/api/v1/dbscan/${radius}/${minPts}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then(response => response.json().then(j => {
+      let dbscan = JSON.parse(j)
+      // add the cluster index to each point
+      for(let clusterIndex = 0; clusterIndex < dbscan.clusters.length; clusterIndex++) {
+        let cluster = dbscan.clusters[clusterIndex]
+        for(let i = 0; i < cluster.length; i++) {
+          let pointIndex = cluster[i]
+          data[pointIndex].push(clusterIndex)
+        }
+      }
+      // tag noise points with cluster value -1
+      for(let i2 = 0; i2 < dbscan.noise.length; i2++) {
+        let pointIndex = dbscan.noise[i2]
+        data[pointIndex].push(-1)
+      }
+  
+      let result = {
+        data,
+        dbscan
+      }
+      res.json(result)
+    }))    
+  })
+})
+
 app.post('/api/v1/point/:clientId', (req, res) => {
   let point = req.body
   let clientId = req.params.clientId
   ds.storePoint(email, point).then(result => {
-    res.sendStatus(200)
-    broadcastDataChangeNotification(email, clientId)
+    redisClient.rpush(email, JSON.stringify(point), (err, reply) => {
+      res.sendStatus(200)
+      broadcastDataChangeNotification(email, clientId)
+    })
   })
 })
 
 app.get('/api/v1/deleteall/:clientId', (req, res) => {
   let clientId = req.params.clientId
   ds.deleteAll(email).then(result => {
-    res.sendStatus(200)
-    broadcastDataChangeNotification(email, clientId)
+    redisClient.del(email, 0, -1, (err, reply) => {
+      res.sendStatus(200)
+      broadcastDataChangeNotification(email, clientId)
+    })
   })
 })
 

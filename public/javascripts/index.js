@@ -115,7 +115,7 @@
         }
 
         loadDataFromServer() {
-            return fetch("/api/v1/data/100/5", { method: "GET" }).then(res => res.json())
+            return fetch("/api/v1/cachedata/50/5", { method: "GET" }).then(res => res.json())
         }
 
         storePointToServer(point) {

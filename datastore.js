@@ -8,11 +8,53 @@ class DataStore {
     }
 
     connect() {
-        console.log(`> Connection config ${this.sqlConnectionConfig}`)
-        this.connection = new Connection(this.sqlConnectionConfig)
-        this.connection.on('connect', err => {
-            if (err) console.log(err)
-            else console.log(`> Connected to ${this.sqlConnectionConfig.options.database}`)
+        return new Promise((res, rej) => {
+            console.log(`> Connection config ${this.sqlConnectionConfig}`)
+            this.connection = new Connection(this.sqlConnectionConfig)
+            this.connection.on('connect', err => {
+                if (err) {
+                    console.log(err)
+                    rej(err)
+                } else {
+                    console.log(`> Connected to ${this.sqlConnectionConfig.options.database}`)
+                    res()
+                }
+            })
+        })
+    }
+
+    queryAll() { 
+        return new Promise((res, rej) => {
+          let request = new Request(
+            "SELECT [data].[email] as email, [data].[x] as x, [data].[y] as y FROM [data]", (err, rowCount, rows) => {
+              if (err) rej(err)
+              else console.log(`> ${rowCount} rows in DB`)
+            })
+      
+            let data = []
+            request.on('row', columns => {
+                let email = columns[0].value
+                let x = columns[1].value
+                let y = columns[2].value
+                data.push({
+                    email: email,
+                    point: [x, y]
+                })
+            })
+      
+            request.on('done', (rowCount, more, rows) => {
+              res(data)
+            })
+      
+            request.on('doneInProc', (rowCount, more, rows) => {
+              res(data)
+            })
+      
+            request.on('doneProc', (rowCount, more, returnStatus, rows) => { 
+              res(data)
+            })
+
+            this.connection.execSql(request)
         })
     }
 
