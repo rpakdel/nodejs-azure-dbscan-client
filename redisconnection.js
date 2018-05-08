@@ -7,7 +7,10 @@ function getRedisConnectionConfig() {
         return {
             host: process.env.RedisHost,
             port: process.env.RedisPort,
-            auth_pass: process.env.RedisPrimaryKey
+            auth_pass: process.env.RedisPrimaryKey,
+            tls: {
+                servername: process.env.RedisHost
+            }
         }
     }
 }
