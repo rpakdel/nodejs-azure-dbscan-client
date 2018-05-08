@@ -186,7 +186,7 @@ app.get('/api/v1/cachedata/:radius/:minPts', (req, res) => {
       }
       res.json(result)
     }))    
-  })
+  }).catch(err => console.log("Failed to get data from redis"))
 })
 
 app.post('/api/v1/point/:clientId', (req, res) => {
