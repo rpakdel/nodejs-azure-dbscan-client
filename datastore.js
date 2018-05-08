@@ -123,7 +123,7 @@ class DataStore {
     execRequestInLoggedInState(request) {
         if (this.connection.state !== this.connection.STATE.LOGGED_IN) {
             // Put the request back on the dispatcher if connection is not in LoggedIn state
-            setTimeout(() => this.execRequestInLoggedInState(request), 100);
+            setTimeout(() => this.execRequestInLoggedInState(request), 10);
             return;
         }
         this.connection.execSql(request)
