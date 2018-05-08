@@ -71,7 +71,10 @@
             if (this.clusterColors.length < numClusters)
             {
                 for(let i = this.clusterColors.length; i < numClusters; i++) {
-                    this.clusterColors.push(`rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`)
+                    let r = Math.random() * 255
+                    let g = Math.random() * 255
+                    let b = Math.random() * 255
+                    this.clusterColors.push("rgb(" + r + "," + g + "," + b + ")")
                 }
             }
             return this.clusterColors
