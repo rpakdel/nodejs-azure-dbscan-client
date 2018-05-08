@@ -54,7 +54,7 @@ class DataStore {
               res(data)
             })
 
-            this.connection.execSql(request)
+            this.execRequestInLoggedInState(request)
         })
     }
 
@@ -87,11 +87,14 @@ class DataStore {
               res(data)
             })
 
-            this.connection.execSql(request)
+            this.execRequestInLoggedInState(request)
         })
     }
 
     storePoint(email, point) {
+
+        
+
         return new Promise((res, rej) => {
             let request = new Request(
                 "INSERT INTO [data] VALUES (@email, @x, @y)", (err) => {
@@ -113,8 +116,17 @@ class DataStore {
             request.on('doneProc', (rowCount, more, returnStatus, rows) => { 
                 res(rowCount)
             });
-            this.connection.execSql(request)
+            this.execRequestInLoggedInState(request)
         })
+    }
+
+    execRequestInLoggedInState(request) {
+        if (this.connection.state !== this.connection.STATE.LOGGED_IN) {
+            // Put the request back on the dispatcher if connection is not in LoggedIn state
+            setTimeout(() => this.execRequestInLoggedInState(request), 100);
+            return;
+        }
+        this.connection.execSql(request)
     }
 
     deleteAll(email) {
@@ -137,7 +149,7 @@ class DataStore {
                 request.on('doneProc', (rowCount, more, returnStatus, rows) => { 
                     res(rowCount)
                 });
-                this.connection.execSql(request)
+                this.execRequestInLoggedInState(request)
             })
         }
     }

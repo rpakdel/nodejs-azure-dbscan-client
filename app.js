@@ -16,12 +16,8 @@ const sqlConnectionConfig = require("./sqlconnection")
 const fetch = require("node-fetch")
 
 const redis = require("redis")
-const redisClient = redis.createClient(6380, 'dbscan.redis.cache.windows.net', {
-    auth_pass: 'yezrd3BGgl18i7vBL6slDKfpAqLGoOvNzpcGhhpBPDM=', 
-    tls: {
-      servername: 'dbscan.redis.cache.windows.net'
-    }
-  })
+const redisConnectionConfig = require("./redisconnection")
+const redisClient = redis.createClient(redisConnectionConfig)
 
 function setRedisFromSQLServer() {
   return new Promise((res, rej) => {
@@ -35,7 +31,7 @@ function setRedisFromSQLServer() {
             redisClient.RPUSH(row.email, JSON.stringify(row.point))          
           })
           res()
-        })
+        }).catch(err => console.log("Failed to query all data from SQL for Redis cache", err))
       }
     })
   })  
@@ -106,7 +102,7 @@ app.use(session({
 }))
 
 let email = "rpakdel@gmail.com"
-let dbscanhost = "https://rpakdel-dbscan.azurewebsites.net/"
+let dbscanhost = "https://dbscan-algo.azurewebsites.net"
 
 app.get('/api/v1/data/:radius/:minPts', (req, res) => {
   let radius = req.params.radius
@@ -140,7 +136,7 @@ app.get('/api/v1/data/:radius/:minPts', (req, res) => {
       }
       res.json(result)
     }))    
-  })
+  }).catch(err => console.log("Failed to query data for email from SQL", err))
 })
 
 function getDataFromRedis(email) {
@@ -201,7 +197,7 @@ app.post('/api/v1/point/:clientId', (req, res) => {
       res.sendStatus(200)
       broadcastDataChangeNotification(email, clientId)
     })
-  })
+  }).catch(err => console.log("Failed to store point in SQL", err))
 })
 
 app.get('/api/v1/deleteall/:clientId', (req, res) => {
@@ -211,7 +207,7 @@ app.get('/api/v1/deleteall/:clientId', (req, res) => {
       res.sendStatus(200)
       broadcastDataChangeNotification(email, clientId)
     })
-  })
+  }).catch(err => console.log("Failed to delete all from SQL", err))
 })
 
 app.use('/', (req, res) => {
