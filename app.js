@@ -18,23 +18,54 @@ const fetch = require("node-fetch")
 const redis = require("redis")
 const redisConnectionConfig = require("./redisconnection")
 const redisClient = redis.createClient(redisConnectionConfig)
+const redisSub = redis.createClient(redisConnectionConfig)
+const redisPub = redis.createClient(redisConnectionConfig)
 
-function setRedisFromSQLServer() {
-  return new Promise((res, rej) => {
-    redisClient.flushdb((err, success) => {
-      if (err) { 
-        rej(err) 
-      }
-      else {
-        ds.queryAll().then(data => {
-          data.map(row => {
-            redisClient.RPUSH(row.email, JSON.stringify(row.point))          
-          })
-          res()
-        }).catch(err => console.log("Failed to query all data from SQL for Redis cache", err))
+// subscribe to this channel so all instances can receive the message
+// since each instance has a local only list of websocketClients
+function setupRedisWebsocketClientsSubscription() {
+  console.log("> Setting up Redis channel for websocket clients.")
+  redisSub.subscribe("websocketClients")
+  redisSub.on("message", (channel, message) => {
+    let j = JSON.parse(message)  
+    webSocketClients.forEach(w => {
+      if (w.email === j.email) {      
+        w.wsSocket.send(message)
       }
     })
-  })  
+  })
+}
+
+function removeRedisPoints(emails) {
+  return new Promise((res, rej) => {
+    let numEmails = emails.length
+    let numEmailsTrimmed = 0
+    emails.forEach(email => redisClient.ltrim(email, 0, -1, (err, reply) => {
+      if (err) { 
+        console.log(`> Failed to trim cache for email ${email}.`)
+        rej(err) 
+      } else {
+        numEmailsTrimmed++
+        if (numEmailsTrimmed === numEmails) {
+          res()
+        }
+      }
+    }))
+  })
+}
+
+function setRedisFromSQLServer() {  
+  return new Promise((res, rej) => {
+    console.log("> Setting up Redis cache from SQL server.")
+    ds.queryAll().then(data => {
+      removeRedisPoints(data.map(row => row.email)).then(() => {
+        data.forEach(row => {
+          redisClient.RPUSH(row.email, JSON.stringify(row.point))          
+        })
+        res()
+      }).catch(err => console.log("> Failed to properly setup Redis cache", err))
+    }).catch(err => console.log("> Failed to query all data from SQL for Redis cache", err))
+  })
 }
 
 const ds = new DataStore(sqlConnectionConfig)
@@ -46,10 +77,12 @@ let webSocketServer = null;
 let webSocketClients = []
 
 app.initWebSocket = function(server) {
+  setupRedisWebsocketClientsSubscription()
+
   webSocketServer = new WebSocket.Server({ server })
 
   webSocketServer.on("connection", wsSocket => {
-    console.log("WebSocket socket client connected")
+    console.log("> WebSocket socket client connected")
     wsSocket.on("message", data => {
       let j = JSON.parse(data)
       if (j.email) {
@@ -73,16 +106,12 @@ app.initWebSocket = function(server) {
 }
 
 function broadcastDataChangeNotification(email, clientId) {
-  webSocketClients.map(w => {
-    if (w.email === email) {
-      let j = {
-        event: "datachanged",
-        email: email,
-        clientId: clientId
-      }
-      w.wsSocket.send(JSON.stringify(j))
-    }
-  })
+  let j = {
+    event: "datachanged",
+    email: email,
+    clientId: clientId
+  }
+  redisPub.publish("websocketClients", JSON.stringify(j))  
 }
 
 // uncomment after placing your favicon in /public
@@ -187,7 +216,7 @@ app.get('/api/v1/cachedata/:radius/:minPts', (req, res) => {
       res.json(result)
     }))    
   }).catch(err => { 
-    console.log("Failed to get data from redis")
+    console.log("> Failed to get data from redis.")
     res.json({ 
       data: [], 
       dbscan: { 
@@ -206,7 +235,7 @@ app.post('/api/v1/point/:clientId', (req, res) => {
       res.sendStatus(200)
       broadcastDataChangeNotification(email, clientId)
     })
-  }).catch(err => console.log("Failed to store point in SQL", err))
+  }).catch(err => console.log("> Failed to store point in SQL", err))
 })
 
 app.get('/api/v1/deleteall/:clientId', (req, res) => {
@@ -216,7 +245,7 @@ app.get('/api/v1/deleteall/:clientId', (req, res) => {
       res.sendStatus(200)
       broadcastDataChangeNotification(email, clientId)
     })
-  }).catch(err => console.log("Failed to delete all from SQL", err))
+  }).catch(err => console.log("> Failed to delete all from SQL", err))
 })
 
 app.use('/', (req, res) => {
