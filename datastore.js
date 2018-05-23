@@ -20,6 +20,12 @@ class DataStore {
                     res()
                 }
             })
+            this.connection.on('error', err => {
+                // of course here you need to check if it wasn't other kind 
+                // of error, I've redacted it for brevity
+                console.log(err)
+                console.log('The app is still running as this error is recoverable')
+            })
         })
     }
 
