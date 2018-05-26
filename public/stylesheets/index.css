@@ -1,6 +1,39 @@
+#plotContainer {
+    width: 80%;
+}
+
 #plotCanvas {
     background: lightyellow;
     border: solid;
-    border-color: black;
+    border-color: grey;
+    border-radius: 5px;
     border-width: 1px;
+    margin: 5px;
+    cursor: crosshair;
+}
+
+#controls {
+    display: inline-block;
+    font-family: sans-serif;
+    font-size: 12px;
+    background: white;
+    padding: 5px;
+    border-color: grey;
+    border-radius: 5px;
+    border-width: 1px;
+    border-style: solid;
+    margin: 5px;
+}
+
+#deleteAll {
+    max-width: 100px;
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 3px;
+    border-color: grey;
+    cursor: pointer;
+    background-color: lightgray;
+    text-align: center;
+    padding: 3px;
+    margin: 5px;    
 }

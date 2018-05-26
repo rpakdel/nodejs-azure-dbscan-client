@@ -13,7 +13,7 @@ class DataStore {
             this.connection = new Connection(this.sqlConnectionConfig)
             this.connection.on('connect', err => {
                 if (err) {
-                    console.log(err)
+                    console.log(`> SQL server connection error: {err}`)
                     rej(err)
                 } else {
                     console.log(`> Connected to ${this.sqlConnectionConfig.options.database}`)
@@ -23,8 +23,8 @@ class DataStore {
             this.connection.on('error', err => {
                 // of course here you need to check if it wasn't other kind 
                 // of error, I've redacted it for brevity
-                console.log(err)
-                console.log('The app is still running as this error is recoverable')
+                console.log(`> SQL server error ignored: {err}`)
+                console.log('> The app is still running as this error is recoverable')
             })
         })
     }

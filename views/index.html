@@ -6,11 +6,24 @@
     <title>Interactive DBSCAN</title>
     <body>
         <div id="plotContainer">
-            <canvas id="plotCanvas" width="800" height="800">
-
+            <canvas id="plotCanvas" width="1024" height="600">
             </canvas>
-            <div id="deleteAll">Delete all</div>
-        </div>
+            <div id="controls">
+                <div>
+                    Num Points: <span id="numPoints"/>
+                </div>
+                <div id="deleteAll">Delete all</div>
+                <div>
+                    <div>
+                        Radius <input id="radius" type="number" value="50"/>
+                        <input id="radiusRange" type="range" min="0" max="100"/>
+                    </div>
+                </div>
+                <div>
+                    Min Points <input id="minPoints" type="number" value="5"/>
+                </div>
+            </div>            
+        </div>        
         <script src="javascripts/index.js"></script>
     </body>
 </html>

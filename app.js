@@ -21,6 +21,18 @@ const redisClient = redis.createClient(redisConnectionConfig)
 const redisSub = redis.createClient(redisConnectionConfig)
 const redisPub = redis.createClient(redisConnectionConfig)
 
+redisClient.on("error", err => {
+  console.log("> Redis client error", err)
+})
+
+redisSub.on("error", err => {
+  console.log("> Redis subscriber client error", err)
+})
+
+redisPub.on("error", err => {
+  console.log("> Redis publisher client error", err)
+})
+
 // subscribe to this channel so all instances can receive the message
 // since each instance has a local only list of websocketClients
 function setupRedisWebsocketClientsSubscription() {
@@ -165,7 +177,7 @@ app.get('/api/v1/data/:radius/:minPts', (req, res) => {
       }
       res.json(result)
     }))    
-  }).catch(err => console.log("Failed to query data for email from SQL", err))
+  }).catch(err => console.log("> Failed to query data for email from SQL", err))
 })
 
 function getDataFromRedis(email) {

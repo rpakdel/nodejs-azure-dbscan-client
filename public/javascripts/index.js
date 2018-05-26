@@ -4,6 +4,9 @@
             this.elements = elements
             this.elements.plotCanvas.addEventListener("click", this.onPlotCanvasClick.bind(this)) 
             this.elements.deleteAll.addEventListener("click", this.onDeleteAllClick.bind(this))             
+            this.elements.minPoints.addEventListener("change", this.setDataAndDrawPlot.bind(this))
+            this.elements.radius.addEventListener("change", this.radiusChanged.bind(this))
+            this.elements.radiusRange.addEventListener("change", this.radiusChanged.bind(this))
 
             this.clientId = Math.random()            
 
@@ -113,12 +116,33 @@
             this.loadDataFromServer().then(result => {
                 this.data = result.data
                 this.dbscan = result.dbscan
+                this.elements.numPoints.innerHTML = this.data.length
                 this.drawPlot(this.data, this.dbscan.clusters.length)
             })
         }
 
         loadDataFromServer() {
-            return fetch("/api/v1/cachedata/50/5", { method: "GET" }).then(res => res.json())
+            let radius = this.getRadius()
+            let minPoints = this.getMinPoints()
+            let query = "/api/v1/cachedata/" + radius + "/" + minPoints
+            return fetch(query, { method: "GET" }).then(res => res.json())
+        }
+
+        getRadius() {
+            return this.elements.radius.value
+        }
+
+        radiusChanged(evt) {
+            if (evt.target === this.elements.radius) {
+                this.elements.radiusRange.value = this.elements.radius.value
+            } else if (evt.target === this.elements.radiusRange) {
+                this.elements.radius.value = this.elements.radiusRange.value
+            }
+            this.setDataAndDrawPlot();
+        }        
+
+        getMinPoints() {
+            return this.elements.minPoints.value
         }
 
         storePointToServer(point) {
@@ -139,7 +163,11 @@
     const elements = {
         plotContainer : document.getElementById("plotContainer"),
         plotCanvas: document.getElementById("plotCanvas"),
+        numPoints: document.getElementById("numPoints"),
         deleteAll: document.getElementById("deleteAll"),
+        radius: document.getElementById("radius"),
+        radiusRange: document.getElementById("radiusRange"),
+        minPoints: document.getElementById("minPoints")
     }
     const app = new App(elements)
 })()
